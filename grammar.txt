@@ -1,0 +1,74 @@
+prog : stmtList
+
+stmtList : stmtList stmtFull
+         : stmtFull
+
+stmtFull : stmt
+         : func
+
+block : block stmt
+      : stmt
+
+stmt : mccmd ;
+     : expr-assgn ;
+     : assgn ;
+     : expr ;
+     : group
+     : for-expr
+     : while-expr
+     : COMMENT
+
+func : FUNC STRING { block }
+
+mccmd : MCCMD
+      : mc-decl
+
+score-decl : SCORE IDENTIFIER : IDENTIFIER
+           : SCORE IDENTIFIER : ( IDENTIFIER , IDENTIFIER )
+
+score-init : score-decl = expr
+
+group : group-specifier { block }
+
+group-specifier : EXEC ( STRING )
+                : group-specifier , EXEC ( STRING )
+
+expr-assgn : IDENTIFIER (+|-|*|/)= IDENTIFIER
+
+assgn : decl
+      : IDENTIFIER PLUS PLUS
+      : IDENTIFIER MINUS MINUS
+
+decl : IDENTIFIER = expr
+
+expr : comp-expr
+     : expr (AND|OR) expr
+
+comp : arith
+     : NOT comp
+     : arith (EE|NE|LT|GT|LTE|GTE) arith
+
+arith : term
+           : arith PLUS arith
+           : arith MINUS arith
+
+term : factor
+     : term MUL term
+     : term DIV term
+
+factor : atom
+       : PLUS factor
+       : MINUS factor
+
+atom : literal
+     : IDENTIFIER
+     : ( expr )
+
+literal : INT
+        : FLOAT
+        : STRING
+        : BOOLEAN
+
+if-expr : IF ( expr ) { block }
+
+for-expr : FOR ( decl ; expr ; assgn ) { body }
