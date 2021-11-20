@@ -88,23 +88,25 @@ def createDatapack(config: dict):
 
     if datapackPath.is_dir():
         if input(f"datapack '{config['datapack']}' already exists! Are you sure u want to override? (y/N) ") == "y":
-            (datapackPath / "data/minecraft/tags/functions").mkdir(parents=True, exist_ok=True)
-            (datapackPath / "msl").mkdir(parents=True, exist_ok=True)
-
-            with open(datapackPath / "pack.mcmeta", "w") as file:
-                json.dump({
-                    "pack": {
-                        "pack_format": 7,
-                        "description": "Created by MSL Compiler"
-                    },
-                    "msl": {
-                        "srcDir": str(datapackPath / "msl"),
-                        "dstDir": str(datapackPath / "data")
-                    }
-                }, file, indent=4)
+            pass
 
         else:
             sys.exit()
+
+    (datapackPath / "data/minecraft/tags/functions").mkdir(parents=True, exist_ok=True)
+    (datapackPath / "msl").mkdir(parents=True, exist_ok=True)
+
+    with open(datapackPath / "pack.mcmeta", "w") as file:
+        json.dump({
+            "pack": {
+                "pack_format": 7,
+                "description": "Created by MSL Compiler"
+            },
+            "msl": {
+                "srcDir": str(datapackPath / "msl"),
+                "dstDir": str(datapackPath / "data")
+            }
+        }, file, indent=4)
 
 
 def createNamespace(config: dict):
