@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .errors import NameError
+from .errors import NameError, ValueError
 
 import re
 from pathlib import Path
@@ -414,6 +414,12 @@ class VariableAssignNode(Node):
 
         if context.isScore(self.name):
             scoreboard, scoreboard_name = context.getScore(self.name)
+
+            if isinstance(value, str):
+                scoreboard_2, scoreboard_name_2 = context.getScore(value)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name} {scoreboard} = {scoreboard_name_2} {scoreboard_2}"))
+
             return result.success(MinecraftCommand(f"scoreboard players set {scoreboard_name} {scoreboard} {value}"))
 
         context.variables[self.name] = value
@@ -437,6 +443,9 @@ class VariableAccessNode(Node):
 
             return result.success(value)
 
+        elif context.isScore(self.name):
+            return result.success(self.name)
+
         return result.failure(NameError(
             self.position,
             context.srcFile,
@@ -459,7 +468,6 @@ class VariableIncrementNode(Node):
         if context.isVariable(self.name):
             value = context.getVariable(self.name)
 
-            # TODO: maybe not wanted behavior
             context.variables[self.name] = value + 1
 
             return result.success(NULL)
@@ -491,7 +499,6 @@ class VariableDecrementNode(Node):
         if context.isVariable(self.name):
             value = context.getVariable(self.name)
 
-            # TODO: maybe not wanted behavior
             context.variables[self.name] = value - 1
 
             return result.success(NULL)
@@ -500,6 +507,256 @@ class VariableDecrementNode(Node):
             scoreboard, scoreboard_name = context.getScore(self.name)
 
             return result.success(MinecraftCommand(f"scoreboard players remove {scoreboard_name} {scoreboard} 1"))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"variable or score '{self.name}' not found"
+        ))
+
+
+##################################################
+# Self Expr Nodes
+##################################################
+class ScoreOpNode(Node):
+    def __init__(self, target: str, source: str, position: SourcePosition) -> None:
+        self.target = target
+        self.source = source
+        self.position = position
+
+    def rep(self) -> str:
+        return f"{self.__class__.__name__}({self.target}, {self.source})"
+
+
+class ScoreOpLeftNode(ScoreOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        if context.isScore(self.target):
+            if context.isScore(self.source):
+                scoreboard_target, scoreboard_name_target = context.getScore(self.target)
+                scoreboard_source, scoreboard_name_source = context.getScore(self.source)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name_target} {scoreboard_target} < {scoreboard_name_source} {scoreboard_source}"))
+
+            return result.failure(NameError(
+                self.position,
+                context.srcFile,
+                context.src,
+                f"score '{self.source}' not found"
+            ))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"score '{self.target}' not found"
+        ))
+
+
+class ScoreOpRightNode(ScoreOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        if context.isScore(self.target):
+            if context.isScore(self.source):
+                scoreboard_target, scoreboard_name_target = context.getScore(self.target)
+                scoreboard_source, scoreboard_name_source = context.getScore(self.source)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name_target} {scoreboard_target} > {scoreboard_name_source} {scoreboard_source}"))
+
+            return result.failure(NameError(
+                self.position,
+                context.srcFile,
+                context.src,
+                f"score '{self.source}' not found"
+            ))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"score '{self.target}' not found"
+        ))
+
+
+class ScoreOpSwapNode(ScoreOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        if context.isScore(self.target):
+            if context.isScore(self.source):
+                scoreboard_target, scoreboard_name_target = context.getScore(self.target)
+                scoreboard_source, scoreboard_name_source = context.getScore(self.source)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name_target} {scoreboard_target} >< {scoreboard_name_source} {scoreboard_source}"))
+
+            return result.failure(NameError(
+                self.position,
+                context.srcFile,
+                context.src,
+                f"score '{self.source}' not found"
+            ))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"score '{self.target}' not found"
+        ))
+
+
+##################################################
+# Self Expr Nodes
+##################################################
+class SelfOpNode(Node):
+    def __init__(self, name: str, value: Node, position: SourcePosition) -> None:
+        self.name = name
+        super().__init__(value, position)
+
+    def rep(self) -> str:
+        return f"{self.__class__.__name__}({self.name}, {self.value.rep()})"
+
+
+class SelfAddNode(SelfOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        value = result.register(self.value.interpret(context))
+
+        if result.error:
+            return result
+
+        if context.isVariable(self.name):
+            _value = context.getVariable(self.name)
+
+            context.variables[self.name] = _value + value
+            return result.success(NULL)
+
+        elif context.isScore(self.name):
+            scoreboard, scoreboard_name = context.getScore(self.name)
+
+            if isinstance(value, str):
+                scoreboard_2, scoreboard_name_2 = context.getScore(value)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name} {scoreboard} += {scoreboard_name_2} {scoreboard_2}"))
+
+            else:
+                return result.success(MinecraftCommand(f"scoreboard players add {scoreboard_name} {scoreboard} {value}"))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"variable or score '{self.name}' not found"
+        ))
+
+
+class SelfSubNode(SelfOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        value = result.register(self.value.interpret(context))
+
+        if result.error:
+            return result
+
+        if context.isVariable(self.name):
+            _value = context.getVariable(self.name)
+
+            context.variables[self.name] = _value - value
+
+            return result.success(NULL)
+
+        elif context.isScore(self.name):
+            scoreboard, scoreboard_name = context.getScore(self.name)
+
+            if isinstance(value, str):
+                scoreboard_2, scoreboard_name_2 = context.getScore(value)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name} {scoreboard} -= {scoreboard_name_2} {scoreboard_2}"))
+
+            else:
+                return result.success(MinecraftCommand(f"scoreboard players remove {scoreboard_name} {scoreboard} {value}"))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"variable or score '{self.name}' not found"
+        ))
+
+
+class SelfMultNode(SelfOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        value = result.register(self.value.interpret(context))
+
+        if result.error:
+            return result
+
+        if context.isVariable(self.name):
+            _value = context.getVariable(self.name)
+
+            context.variables[self.name] = _value * value
+
+            return result.success(NULL)
+
+        elif context.isScore(self.name):
+            scoreboard, scoreboard_name = context.getScore(self.name)
+
+            if isinstance(value, str):
+                scoreboard_2, scoreboard_name_2 = context.getScore(value)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name} {scoreboard} *= {scoreboard_name_2} {scoreboard_2}"))
+
+            return result.failure(ValueError(
+                self.position,
+                context.srcFile,
+                context.src,
+                f"cannot multiply '{value}' to score '{self.name}'"
+            ))
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"variable or score '{self.name}' not found"
+        ))
+
+
+class SelfDivNode(SelfOpNode):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        value = result.register(self.value.interpret(context))
+
+        if result.error:
+            return result
+
+        if context.isVariable(self.name):
+            _value = context.getVariable(self.name)
+
+            context.variables[self.name] = _value / value
+
+            return result.success(NULL)
+
+        elif context.isScore(self.name):
+            scoreboard, scoreboard_name = context.getScore(self.name)
+
+            if isinstance(value, str):
+                scoreboard_2, scoreboard_name_2 = context.getScore(value)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name} {scoreboard} /= {scoreboard_name_2} {scoreboard_2}"))
+
+            return result.failure(ValueError(
+                self.position,
+                context.srcFile,
+                context.src,
+                f"cannot divide score '{self.name}' by '{value}'"
+            ))
 
         return result.failure(NameError(
             self.position,

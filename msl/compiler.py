@@ -1,9 +1,9 @@
 from __future__ import annotations
-from compiler.ast import Context
+from .ast import Context
 
-from compiler.lexer import Lexer
-from compiler.parser import Parser, ParserState
-from compiler.preprocesser import PreProcesser, MINECRAFT_KEYWORDS
+from .lexer import Lexer
+from .parser import Parser, ParserState
+from .preprocesser import PreProcesser, MINECRAFT_KEYWORDS
 
 
 MINECRAFT = {
@@ -16,11 +16,6 @@ MINECRAFT = {
 }
 
 KEYWORDS = {
-    # "IF": r"if(?!\w)",
-    # "ELSE": r"else(?!\w)",
-
-    # "VAR": r"var(?!\w)",
-
     "FUNC": r"func(?!\w)",
 
     "FOR": r"for(?!\w)",
@@ -28,10 +23,19 @@ KEYWORDS = {
 }
 
 OPERATORS = {
+    "PLUSEQ": r"\+\=",
+    "MINUSEQ": r"\-\=",
+    "MULTEQ": r"\*\=",
+    "DIVEQ": r"\/\=",
+
     "PLUS": r"\+",
     "MINUS": r"\-",
     "MULT": r"\*",
     "DIV": r"\/",
+
+    "<<": r"\<\<",
+    ">>": r"\>\>",
+    "><": r"\>\<",
 
     "==": r"\=\=",
     ">=": r"\>\=",
@@ -93,11 +97,6 @@ class Compiler:
             lexer = Lexer(TOKENTYPES, r'[ \n\t\r\f\v]+')
             tokens = lexer.lex(source)
 
-            # for token in lexer.lex(source):
-            #     print(token)
-
-            # quit()
-
             # parser
             state = ParserState()
             parser = Parser(list(TOKENTYPES), [
@@ -108,14 +107,12 @@ class Compiler:
 
             # ast
             ast = parser.parse(tokens, state)
-            # print(ast.rep())
 
             context = Context(inFile, outFile, source)
             result = ast.interpret(context)
 
             if result.error:
                 return result.error
-                # result.error.raiseError()
 
             commands = result.value
 

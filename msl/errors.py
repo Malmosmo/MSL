@@ -43,3 +43,7 @@ class UnexpectedEndError(BaseError):
 
 class NameError(BaseError):
     pass
+
+
+class ValueError(BaseError):
+    pass

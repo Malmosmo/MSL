@@ -72,6 +72,7 @@ class Parser:
             return p[0]
 
         @self.pg.production('stmt : assgn ;')
+        @self.pg.production('stmt : expr-assgn ;')
         @self.pg.production('stmt : expr ;')
         @self.pg.production('stmt : group')
         @self.pg.production('stmt : for-expr')
@@ -82,6 +83,25 @@ class Parser:
         @self.pg.production('stmt : COMMENT')
         def stmt_comment(state: ParserState, p):
             return CommentNode(p[0].getstr(), p[0].getsourcepos())
+
+        ##################################################
+        # Expr-assgn
+        ##################################################
+        @self.pg.production('expr-assgn : IDENTIFIER PLUSEQ expr')
+        def expr_assgn_add(state: ParserState, p):
+            return SelfAddNode(p[0].getstr(), p[2], p[0].getsourcepos())
+
+        @self.pg.production('expr-assgn : IDENTIFIER MINUSEQ expr')
+        def expr_assgn_sub(state: ParserState, p):
+            return SelfSubNode(p[0].getstr(), p[2], p[0].getsourcepos())
+
+        @self.pg.production('expr-assgn : IDENTIFIER MULTEQ expr')
+        def expr_assgn_mul(state: ParserState, p):
+            return SelfMultNode(p[0].getstr(), p[2], p[0].getsourcepos())
+
+        @self.pg.production('expr-assgn : IDENTIFIER DIVEQ expr')
+        def expr_assgn_div(state: ParserState, p):
+            return SelfDivNode(p[0].getstr(), p[2], p[0].getsourcepos())
 
         ##################################################
         # Minecraft
@@ -96,6 +116,7 @@ class Parser:
 
         @self.pg.production('mccmd : score-decl')
         @self.pg.production('mccmd : score-init')
+        @self.pg.production('mccmd : score-op')
         def mccmd_decl(state: ParserState, p):
             return p[0]
 
@@ -111,6 +132,19 @@ class Parser:
         @self.pg.production('score-init : score-decl = expr')
         def score_init(state: ParserState, p):
             return ScoreInitNode(p[0], p[2], p[0].getsourcepos())
+
+        # score-op
+        @self.pg.production('score-op : IDENTIFIER << IDENTIFIER')
+        def score_op_left(state: ParserState, p):
+            return ScoreOpLeftNode(p[0].getstr(), p[2].getstr(), p[0].getsourcepos())
+
+        @self.pg.production('score-op : IDENTIFIER >> IDENTIFIER')
+        def score_op_right(state: ParserState, p):
+            return ScoreOpRightNode(p[0].getstr(), p[2].getstr(), p[0].getsourcepos())
+
+        @self.pg.production('score-op : IDENTIFIER >< IDENTIFIER')
+        def score_op_swap(state: ParserState, p):
+            return ScoreOpSwapNode(p[0].getstr(), p[2].getstr(), p[0].getsourcepos())
 
         # group
         @self.pg.production('group : group-specifier { block }')
