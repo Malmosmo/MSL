@@ -2,16 +2,60 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import pathlib
 import sys
+import time
+
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
 from .compiler import Compiler
 
+if os.name == "nt":
+    baseClass = pathlib.WindowsPath
 
-class Path(type(pathlib.Path())):
-    def substitute(self, __old: pathlib._P, __new: pathlib._P) -> pathlib._P:
-        return Path(str(self).replace(str(__old), str(__new)))
+else:
+    baseClass = pathlib.PosixPath
+
+
+class Formatter(logging.Formatter):
+
+    warningFormat = "\033[93m[%(asctime)s]\033[0m %(message)s"
+    infoFormat = "\033[92m[%(asctime)s]\033[0m %(message)s"
+    errorFormat = "\033[91m[%(asctime)s]\033[0m %(message)s"
+
+    def __init__(self):
+        super().__init__(fmt="[%(asctime)s] %(message)s", datefmt='%H:%M:%S', style='%')
+
+    def format(self, record):
+        format_orig = self._style._fmt
+
+        if record.levelno == logging.WARNING:
+            self._style._fmt = Formatter.warningFormat
+
+        elif record.levelno == logging.INFO:
+            self._style._fmt = Formatter.infoFormat
+
+        elif record.levelno == logging.ERROR:
+            self._style._fmt = Formatter.errorFormat
+
+        result = logging.Formatter.format(self, record)
+        self._style._fmt = format_orig
+
+        return result
+
+
+class Path(baseClass):
+    def substitute(self, __old: baseClass | str, __new: baseClass | str) -> Path:
+        if isinstance(__old, baseClass):
+            __old = str(__old)
+
+        if isinstance(__new, baseClass):
+            __new = str(__new)
+
+        return Path(str(self).replace(__old, __new))
 
 
 class Parser(argparse.ArgumentParser):
@@ -55,6 +99,23 @@ Examples:
         sys.exit(2)
 
 
+class FileAutoCompiler(FileSystemEventHandler):
+    def __init__(self, config):
+        self.config = config
+        self.last_modified = time.time()
+
+    def on_modified(self, event):
+        if time.time() - self.last_modified > 1:
+            self.last_modified = time.time()
+
+            if self.config["namespace"]:
+                compileNamespace(self.config, self.config["srcDir"] / self.config["namespace"])
+
+            else:
+                for namespace in os.listdir(self.config["srcDir"]):
+                    compileNamespace(self.config, self.config["srcDir"] / namespace)
+
+
 def loadMcMeta(config: dict) -> dict:
     metaPath = config["basePath"] / "pack.mcmeta"
 
@@ -64,11 +125,11 @@ def loadMcMeta(config: dict) -> dict:
 
         if "msl" in metaConfig:
             if not "srcDir" in metaConfig["msl"]:
-                print("No source directory in pack.mcmeta")
+                logging.warning("No source directory in pack.mcmeta")
                 sys.exit()
 
             if not "dstDir" in metaConfig["msl"]:
-                print("No destination directory in pack.mcmeta")
+                logging.warning("No destination directory in pack.mcmeta")
                 sys.exit()
 
             return {
@@ -76,10 +137,10 @@ def loadMcMeta(config: dict) -> dict:
                 "dstDir": Path(metaConfig["msl"]["dstDir"])
             }
 
-        print("msl config not found in pack.mcmeta")
+        logging.warning("msl config not found in pack.mcmeta")
         sys.exit()
 
-    print("could not find 'pack.mcmeta', are you sure you are in your datapack folder?")
+    logging.warning("could not find 'pack.mcmeta', are you sure you are in your datapack folder?")
     sys.exit()
 
 
@@ -152,6 +213,7 @@ def createNamespace(config: dict):
 
 def compileNamespace(config: dict, namespace: str) -> None:
     for root, _, files in os.walk(namespace):
+        logging.info(f"\033[33mcompiling\033[0m {root} ...")
         for fileName in files:
             rootPath = Path(root)
             filePath = rootPath / fileName
@@ -161,17 +223,16 @@ def compileNamespace(config: dict, namespace: str) -> None:
 
             dstFilePath.parent.mkdir(parents=True, exist_ok=True)
 
-            print(f"\033[33mcompiling\033[0m {filePath}... ", end="")
+            print(f"    {filePath.substitute(root, '.')} ", end="")
 
             error = Compiler.compile(filePath, dstFilePath)
 
             if error:
-                print("\033[31mfailed\033[0m")
+                print("(\033[91mfailed\033[0m)")
                 error.raiseError()
                 break
 
-            else:
-                print("\033[92msuccess\033[0m")
+            print("(\033[92msuccess\033[0m)")
 
 
 if __name__ == "__main__":
@@ -188,7 +249,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
 
-    config["basePath"] = Path(os.getcwd())
+    # config["basePath"] = Path(os.getcwd())
+    config["basePath"] = Path(r"C:\Users\Hannes\AppData\Roaming\.minecraft\saves\Minigames\datapacks\Games")
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(Formatter())
+
+    logging.root.addHandler(handler)
+    logging.root.setLevel(logging.DEBUG)
 
     if config["mode"] == "create":
         if config["world"] and config["datapack"]:
@@ -201,7 +269,7 @@ if __name__ == "__main__":
             createDatapack(config)
 
         else:
-            print("Missing world name or datapack name")
+            logging.warning("Missing world name or datapack name")
 
     else:
         config |= loadMcMeta(config)
@@ -211,7 +279,7 @@ if __name__ == "__main__":
                 createNamespace(config)
 
             else:
-                print("please provide a namespace with '-n NAMESPACE'")
+                logging.warning("please provide a namespace with '-n NAMESPACE'")
 
         elif config["mode"] == "compile":
             if config["namespace"]:
@@ -220,3 +288,24 @@ if __name__ == "__main__":
             else:
                 for namespace in os.listdir(config["srcDir"]):
                     compileNamespace(config, config["srcDir"] / namespace)
+
+        elif config["mode"] == "run":
+            if config["namespace"]:
+                compilePath = config["srcDir"] / config["namespace"]
+
+            else:
+                compilePath = config["srcDir"]
+
+            observer = Observer()
+            observer.schedule(FileAutoCompiler(config), path=str(compilePath), recursive=True)
+            observer.start()
+
+            try:
+                while True:
+                    time.sleep(5)
+
+            except KeyboardInterrupt:
+                logging.info("Stopping compiler!")
+                observer.stop()
+
+            observer.join()
