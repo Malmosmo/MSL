@@ -778,8 +778,6 @@ class BinaryOpNode(Node):
     def rep(self) -> str:
         return f"{self.__class__.__name__}({self.left.rep()}, {self.right.rep()})"
 
-
-class BinaryMultNode(BinaryOpNode):
     def interpret(self, context: Context) -> RTResult:
         result = RTResult()
 
@@ -793,194 +791,67 @@ class BinaryMultNode(BinaryOpNode):
         if result.error:
             return result
 
-        return result.success(left * right)
+        return result.success(self.operation(left, right))
+
+
+class BinaryMultNode(BinaryOpNode):
+    def operation(self, left, right):
+        return left * right
 
 
 class BinaryDivNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left / right)
+    def operation(self, left, right):
+        return left / right
 
 
 class BinaryAddNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left + right)
+    def operation(self, left, right):
+        return left + right
 
 
 class BinarySubNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left - right)
+    def operation(self, left, right):
+        return left - right
 
 
 class BinaryLENode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left < right)
+    def operation(self, left, right):
+        return left < right
 
 
 class BinaryGENode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left > right)
+    def operation(self, left, right):
+        return left > right
 
 
 class BinaryLETNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left <= right)
+    def operation(self, left, right):
+        return left <= right
 
 
 class BinaryGETNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left >= right)
+    def operation(self, left, right):
+        return left >= right
 
 
 class BinaryEQNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left == right)
+    def operation(self, left, right):
+        return left == right
 
 
 class BinaryNEQNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left != right)
+    def operation(self, left, right):
+        return left != right
 
 
 class BinaryAndNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left and right)
+    def operation(self, left, right):
+        return left and right
 
 
 class BinaryOrNode(BinaryOpNode):
-    def interpret(self, context: Context) -> RTResult:
-        result = RTResult()
-
-        left = result.register(self.left.interpret(context))
-
-        if result.error:
-            return result
-
-        right = result.register(self.right.interpret(context))
-
-        if result.error:
-            return result
-
-        return result.success(left or right)
+    def operation(self, left, right):
+        return left or right
 
 
 ##################################################
