@@ -10,7 +10,7 @@ pip install git+https://github.com/Malmosmo/MSL.git
 ```
 //> main
 
-for (i = 0; i < 2; i++) {
+for (i = 0; i < 5; i++) {
   as ("@e[distance=..2]"), at ("@s") {
     say hello there
   }
