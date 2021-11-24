@@ -3,7 +3,7 @@ A programming language that compiles to minecraft commands.
 
 # Install
 ```
-pip install git+https://github.com/Malmosmo/MSL.git
+pip install git+https://github.com/Malmosmo/MSL.git -r https://raw.githubusercontent.com/Malmosmo/MSL/main/requirements.txt
 ```
 
 # Example
