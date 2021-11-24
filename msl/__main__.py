@@ -249,8 +249,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = vars(args)
 
-    # config["basePath"] = Path(os.getcwd())
-    config["basePath"] = Path(r"C:\Users\Hannes\AppData\Roaming\.minecraft\saves\Minigames\datapacks\Games")
+    config["basePath"] = Path(os.getcwd())
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(Formatter())
@@ -261,7 +260,12 @@ if __name__ == "__main__":
     if config["mode"] == "create":
         if config["world"] and config["datapack"]:
             if not config["minecraft"]:
-                config["minecraft"] = Path(os.getenv("APPDATA")) / ".minecraft"
+                if os.name == "nt":
+                    config["minecraft"] = Path(os.getenv("APPDATA")) / ".minecraft"
+
+                else:
+                    logging.warning("please specify a minecraft path (-m MINECRAFT) on non windows systems")
+                    sys.exit()
 
             else:
                 config["minecraft"] = Path(config["minecraft"])
