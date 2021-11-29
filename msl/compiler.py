@@ -12,10 +12,12 @@ MINECRAFT = {
     "COMMENT": r"(/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)|(//.*)",
     "MCCMD": "(" + "|".join(MINECRAFT_KEYWORDS) + r").*(?!\n)",
 
+    "CREATE": r"create(?!\w)",
     "SCORE": r"score(?!\w)",
 }
 
 KEYWORDS = {
+    "VAR": r"var(?!\w)",
     "FUNC": r"func(?!\w)",
 
     "FOR": r"for(?!\w)",

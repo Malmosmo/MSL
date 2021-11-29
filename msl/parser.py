@@ -72,6 +72,7 @@ class Parser:
             return p[0]
 
         @self.pg.production('stmt : assgn ;')
+        @self.pg.production('stmt : decl ;')
         @self.pg.production('stmt : expr-assgn ;')
         @self.pg.production('stmt : expr ;')
         @self.pg.production('stmt : group')
@@ -83,25 +84,6 @@ class Parser:
         @self.pg.production('stmt : COMMENT')
         def stmt_comment(state: ParserState, p):
             return CommentNode(p[0].getstr(), p[0].getsourcepos())
-
-        ##################################################
-        # Expr-assgn
-        ##################################################
-        @self.pg.production('expr-assgn : IDENTIFIER PLUSEQ expr')
-        def expr_assgn_add(state: ParserState, p):
-            return SelfAddNode(p[0].getstr(), p[2], p[0].getsourcepos())
-
-        @self.pg.production('expr-assgn : IDENTIFIER MINUSEQ expr')
-        def expr_assgn_sub(state: ParserState, p):
-            return SelfSubNode(p[0].getstr(), p[2], p[0].getsourcepos())
-
-        @self.pg.production('expr-assgn : IDENTIFIER MULTEQ expr')
-        def expr_assgn_mul(state: ParserState, p):
-            return SelfMultNode(p[0].getstr(), p[2], p[0].getsourcepos())
-
-        @self.pg.production('expr-assgn : IDENTIFIER DIVEQ expr')
-        def expr_assgn_div(state: ParserState, p):
-            return SelfDivNode(p[0].getstr(), p[2], p[0].getsourcepos())
 
         ##################################################
         # Minecraft
@@ -116,11 +98,21 @@ class Parser:
 
         @self.pg.production('mccmd : score-decl')
         @self.pg.production('mccmd : score-init')
+        @self.pg.production('mccmd : score-create')
         @self.pg.production('mccmd : score-op')
-        def mccmd_decl(state: ParserState, p):
+        def mccmd_other(state: ParserState, p):
             return p[0]
 
         # Scores
+        @self.pg.production('score-create : CREATE score-decl')
+        @self.pg.production('score-create : CREATE score-init')
+        def score_create(state: ParserState, p):
+            return ScoreCreateNode(p[1], p[0].getsourcepos())
+
+        @self.pg.production('score-init : score-decl = expr')
+        def score_init(state: ParserState, p):
+            return ScoreInitNode(p[0], p[2], p[0].getsourcepos())
+
         @self.pg.production('score-decl : SCORE IDENTIFIER : IDENTIFIER')
         def score_decl(state: ParserState, p):
             return ScoreDeclNode(p[1].getstr(), p[3].getstr(), p[1].getstr(), p[0].getsourcepos())
@@ -128,10 +120,6 @@ class Parser:
         @self.pg.production('score-decl : SCORE IDENTIFIER : ( IDENTIFIER , IDENTIFIER )')
         def score_decl_1(state: ParserState, p):
             return ScoreDeclNode(p[1].getstr(), p[4].getstr(), p[6].getstr(), p[0].getsourcepos())
-
-        @self.pg.production('score-init : score-decl = expr')
-        def score_init(state: ParserState, p):
-            return ScoreInitNode(p[0], p[2], p[0].getsourcepos())
 
         # score-op
         @self.pg.production('score-op : IDENTIFIER << IDENTIFIER')
@@ -166,9 +154,9 @@ class Parser:
         ##################################################
         # Variables
         ##################################################
-        @self.pg.production('assgn : decl')
+        @self.pg.production('assgn : IDENTIFIER = expr')
         def assgn(state: ParserState, p):
-            return p[0]
+            return VariableAssignNode(p[0].getstr(), p[2], p[0].getsourcepos())
 
         @self.pg.production('assgn : IDENTIFIER PLUS PLUS')
         def assgn_incr(state: ParserState, p):
@@ -178,9 +166,28 @@ class Parser:
         def assgn_decr(state: ParserState, p):
             return VariableDecrementNode(p[0].getstr(), p[0].getsourcepos())
 
-        @self.pg.production('decl : IDENTIFIER = expr')
+        @self.pg.production('decl : VAR IDENTIFIER = expr')
         def decl(state: ParserState, p):
-            return VariableAssignNode(p[0].getstr(), p[2], p[0].getsourcepos())
+            return VariableDeclareNode(p[1].getstr(), p[3], p[0].getsourcepos())
+
+        ##################################################
+        # Expr-assgn
+        ##################################################
+        @self.pg.production('expr-assgn : IDENTIFIER PLUSEQ expr')
+        def expr_assgn_add(state: ParserState, p):
+            return SelfAddNode(p[0].getstr(), p[2], p[0].getsourcepos())
+
+        @self.pg.production('expr-assgn : IDENTIFIER MINUSEQ expr')
+        def expr_assgn_sub(state: ParserState, p):
+            return SelfSubNode(p[0].getstr(), p[2], p[0].getsourcepos())
+
+        @self.pg.production('expr-assgn : IDENTIFIER MULTEQ expr')
+        def expr_assgn_mul(state: ParserState, p):
+            return SelfMultNode(p[0].getstr(), p[2], p[0].getsourcepos())
+
+        @self.pg.production('expr-assgn : IDENTIFIER DIVEQ expr')
+        def expr_assgn_div(state: ParserState, p):
+            return SelfDivNode(p[0].getstr(), p[2], p[0].getsourcepos())
 
         ##################################################
         # Expression

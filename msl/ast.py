@@ -42,6 +42,9 @@ class Context:
         self.scores = {}
         self.parent = parent
 
+    def __repr__(self) -> str:
+        return f"Variables: {self.variables}\nScores: {self.scores}"
+
     def isVariable(self, name: str) -> bool:
         result = name in self.variables
 
@@ -241,6 +244,31 @@ class FuncNode(Node):
         return result.success(NULL)
 
 
+class ScoreCreateNode(Node):
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        if isinstance(self.value, ScoreDeclNode):
+            scoreboard = self.value.scoreboard
+
+        else:
+            scoreboard = self.value.decl.scoreboard
+
+        commands = MinecraftCommandList()
+
+        commands.add(MinecraftCommand(f"scoreboard objectives add {scoreboard} dummy"))
+
+        value = result.register(self.value.interpret(context))
+
+        if result.error:
+            return result
+
+        if isinstance(value, MinecraftCommand):
+            commands.add(value)
+
+        return result.success(commands)
+
+
 class ScoreDeclNode(Node):
     def __init__(self, name: str, scoreboard: str, scoreboard_name: str, position: SourcePosition) -> None:
         self.name = name
@@ -257,7 +285,7 @@ class ScoreDeclNode(Node):
         if not context.isScore(self.name):
             context.scores[self.name] = [self.scoreboard, self.scoreboard_name]
 
-            return result.success(NULL)
+            return result.success(self.name)
 
         return result.failure(NameError(
             self.position,
@@ -289,6 +317,19 @@ class ScoreInitNode(Node):
             return result
 
         scoreboard, scoreboard_name = context.getScore(self.decl.name)
+
+        if isinstance(value, str):
+            if context.isScore(value):
+                scoreboard_2, scoreboard_name_2 = context.getScore(value)
+
+                return result.success(MinecraftCommand(f"scoreboard players operation {scoreboard_name} {scoreboard} = {scoreboard_name_2} {scoreboard_2}"))
+
+            return result.failure(NameError(
+                self.position,
+                context.srcFile,
+                context.src,
+                f"variable {self.name} not found"
+            ))
 
         return result.success(MinecraftCommand(f"scoreboard players set {scoreboard_name} {scoreboard} {value}"))
 
@@ -396,6 +437,35 @@ class McCmdNode(Node):
 ##################################################
 # Variables
 ##################################################
+class VariableDeclareNode(Node):
+    def __init__(self, name: str, value: Node, position: SourcePosition) -> None:
+        self.name = name
+        super().__init__(value, position)
+
+    def rep(self) -> str:
+        return f"{self.__class__.__name__}({self.name}, {self.value.rep()})"
+
+    def interpret(self, context: Context) -> RTResult:
+        result = RTResult()
+
+        if not context.isVariable(self.name):
+            value = result.register(self.value.interpret(context))
+
+            if result.error:
+                return result
+
+            context.variables[self.name] = value
+
+            return result.success(value)
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"variable {self.name} already declared"
+        ))
+
+
 class VariableAssignNode(Node):
     def __init__(self, name: str, value: Node, position: SourcePosition) -> None:
         self.name = name
@@ -422,9 +492,17 @@ class VariableAssignNode(Node):
 
             return result.success(MinecraftCommand(f"scoreboard players set {scoreboard_name} {scoreboard} {value}"))
 
-        context.variables[self.name] = value
+        if context.isVariable(self.name):
+            context.variables[self.name] = value
 
-        return result.success(NULL)
+            return result.success(value)
+
+        return result.failure(NameError(
+            self.position,
+            context.srcFile,
+            context.src,
+            f"variable {self.name} does not declared"
+        ))
 
 
 class VariableAccessNode(Node):
@@ -443,7 +521,7 @@ class VariableAccessNode(Node):
 
             return result.success(value)
 
-        elif context.isScore(self.name):
+        if context.isScore(self.name):
             return result.success(self.name)
 
         return result.failure(NameError(

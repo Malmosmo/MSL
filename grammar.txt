@@ -21,25 +21,35 @@ stmt : mccmd ;
 func : FUNC STRING { block }
 
 mccmd : MCCMD
-      : mc-decl
-
-score-decl : SCORE IDENTIFIER : IDENTIFIER
-           : SCORE IDENTIFIER : ( IDENTIFIER , IDENTIFIER )
-
-score-init : score-decl = expr
+      : score-create
+      : score-init
+      : score-decl
+      : score-op
 
 group : group-specifier { block }
 
 group-specifier : EXEC ( STRING )
                 : group-specifier , EXEC ( STRING )
 
-expr-assgn : IDENTIFIER (+|-|*|/)= IDENTIFIER
+score-create : CREATE score-decl
+             : CREATE score-init
 
-assgn : decl
+score-init : score-decl = expr
+
+score-decl : SCORE IDENTIFIER : IDENTIFIER
+           : SCORE IDENTIFIER : ( IDENTIFIER , IDENTIFIER )
+
+score-op : IDENTIFIER >> IDENTIFIER
+         : IDENTIFIER << IDENTIFIER
+         : IDENTIFIER >< IDENTIFIER
+
+init : VAR IDENTIFIER = expr
+
+assgn : IDENTIFIER = expr
       : IDENTIFIER PLUS PLUS
       : IDENTIFIER MINUS MINUS
 
-decl : IDENTIFIER = expr
+expr-assgn : IDENTIFIER (+|-|*|/)= IDENTIFIER
 
 expr : comp-expr
      : expr (AND|OR) expr
